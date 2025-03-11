@@ -15,23 +15,44 @@ export const validateRequired = (value) => {
 };
 
 // Form submission function (simulate API call)
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 export const submitFormData = async (formData) => {
-    // In a real application, this would be an API call
-    return new Promise((resolve, reject) => {
-        // Simulate network delay
-        setTimeout(() => {
-            // Simulate successful submission (90% success rate)
-            if (Math.random() < 0.9) {
-                resolve({
-                    success: true,
-                    message: 'Thank you for your submission! Our team will contact you shortly.'
-                });
-            } else {
-                reject({
-                    success: false,
-                    message: 'There was an error submitting your request. Please try again.'
-                });
-            }
-        }, 1000);
-    });
+    try {
+        // Map frontend form fields to backend expected format
+        const backendData = {
+            firstName: formData.firstName || formData.fullName?.split(' ')[0] || '',
+            lastName: formData.lastName || formData.fullName?.split(' ').slice(1).join(' ') || '',
+            email: formData.email,
+            phone: formData.phone,
+            businessType: formData.businessType || '',
+            message: formData.message || ''
+        };
+
+        // Make actual API call to your backend
+        const response = await fetch(`${API_BASE_URL}/leads`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(backendData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to submit form');
+        }
+
+        return {
+            success: true,
+            message: data.message || 'Thank you for your submission! Our team will contact you shortly.'
+        };
+    } catch (error) {
+        console.error('Form submission error:', error);
+        return {
+            success: false,
+            message: error.message || 'There was an error submitting your request. Please try again.'
+        };
+    }
 };
