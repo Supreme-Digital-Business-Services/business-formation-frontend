@@ -73,7 +73,18 @@ const Hero = () => {
         setIsSubmitting(true);
 
         try {
-            const result = await submitFormData(formData);
+            const [firstName, ...lastNameParts] = formData.fullName.split(' ');
+            const lastName = lastNameParts.join(' ') || 'Unknown'; // Default lastName to 'Unknown' if not provided
+
+            // Submit the form data with separated firstName and lastName
+            const result = await submitFormData({
+                firstName,
+                lastName,
+                email: formData.email,
+                phone: formData.phone,
+                businessType: formData.businessType
+            });
+
             setFormStatus({
                 submitted: true,
                 success: true,
