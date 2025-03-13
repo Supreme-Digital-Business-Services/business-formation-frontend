@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Badge } from '../../components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
     DialogFooter,
-} from '../../components/ui/dialog';
+} from '@/components/ui/dialog';
+import AddLeadForm from '../components/AddLeadForm';
+import ScheduleFollowUpForm from '../components/ScheduleFollowUpForm';
 
 const LeadsPage = () => {
     const [leads, setLeads] = useState([]);
@@ -23,6 +25,8 @@ const LeadsPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [sourceFilter, setSourceFilter] = useState('');
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
 
     // Get leads from API
     useEffect(() => {
@@ -32,7 +36,7 @@ const LeadsPage = () => {
 
             try {
                 const token = localStorage.getItem('token');
-                const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
                 let url = `${baseUrl}/leads?page=${currentPage}&limit=10`;
 
@@ -94,7 +98,7 @@ const LeadsPage = () => {
     const updateLeadStatus = async (leadId, newStatus) => {
         try {
             const token = localStorage.getItem('token');
-            const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
             await axios.put(
                 `${baseUrl}/leads/${leadId}/status`,
@@ -131,6 +135,18 @@ const LeadsPage = () => {
         setSelectedLead(lead);
     };
 
+    // Handle new lead added
+    const handleLeadAdded = (newLead) => {
+        // Add the new lead to the start of the list
+        setLeads([newLead, ...leads]);
+        setFilteredLeads([newLead, ...filteredLeads]);
+    };
+
+    // Handle follow-up scheduled
+    const handleFollowUpScheduled = () => {
+        // Could add a toast notification here
+    };
+
     if (isLoading && leads.length === 0) {
         return (
             <div className="flex h-full items-center justify-center p-4">
@@ -143,7 +159,7 @@ const LeadsPage = () => {
         <div className="p-4">
             <div className="mb-6 flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-800">Leads Management</h1>
-                <Button variant="outline">Add Manual Lead</Button>
+                <Button onClick={() => setIsAddModalOpen(true)}>Add Manual Lead</Button>
             </div>
 
             {error && (
@@ -388,10 +404,36 @@ const LeadsPage = () => {
                         </div>
 
                         <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setSelectedLead(prevLead => prevLead);
+                                    setIsFollowUpModalOpen(true);
+                                }}
+                            >
+                                Schedule Follow-Up
+                            </Button>
                             <Button onClick={() => setSelectedLead(null)}>Close</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+            )}
+
+            {/* Add Lead Modal */}
+            <AddLeadForm
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onLeadAdded={handleLeadAdded}
+            />
+
+            {/* Schedule Follow-up Modal */}
+            {selectedLead && (
+                <ScheduleFollowUpForm
+                    isOpen={isFollowUpModalOpen}
+                    onClose={() => setIsFollowUpModalOpen(false)}
+                    lead={selectedLead}
+                    onScheduled={handleFollowUpScheduled}
+                />
             )}
         </div>
     );

@@ -30,7 +30,7 @@ const FollowUpsPage = () => {
 
             try {
                 const token = localStorage.getItem('token');
-                const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
                 let url = `${baseUrl}/follow-ups?sort=scheduledDate&order=asc&assignedTo=me`;
 
@@ -71,7 +71,7 @@ const FollowUpsPage = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
             await axios.put(
                 `${baseUrl}/follow-ups/${selectedFollowUp.id}/complete`,

@@ -20,7 +20,7 @@ const NotificationBell = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
             const response = await axios.get(`${baseUrl}/notifications?limit=10`, {
                 headers: {
@@ -51,7 +51,7 @@ const NotificationBell = () => {
     const markAsRead = async (notificationId) => {
         try {
             const token = localStorage.getItem('token');
-            const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
             await axios.put(
                 `${baseUrl}/notifications/${notificationId}/read`,
@@ -80,7 +80,7 @@ const NotificationBell = () => {
     const markAllAsRead = async () => {
         try {
             const token = localStorage.getItem('token');
-            const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
             await axios.put(
                 `${baseUrl}/notifications/read-all`,
