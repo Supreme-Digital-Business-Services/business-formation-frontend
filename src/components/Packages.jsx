@@ -10,12 +10,12 @@ const Packages = () => {
                 "Freelancer Permit",
                 "Upto 10 Activities",
                 "0% Tax",
-                "UAE Residence",
+                "Existing EID Holder",
                 "No Office Required",
                 "Document Attestation",
                 "Certificate of Incorporation",
                 "Legal Documentation",
-                "Business Networking Access"
+                "Business Networking Access",
             ]
         },
         {
@@ -42,11 +42,11 @@ const Packages = () => {
                 "Multiple Activities",
                 "100% Foreign Ownership",
                 "Up to 6 Residence Visa Quotas",
-                "Virtual Office Space",
                 "Corporate Bank Account",
                 "Corporate TAX Registration",
                 "Legal Documentation",
-                "Business Networking Access"
+                "Business Networking Access",
+                "Free Company Stamp"
             ]
         }
     ];
