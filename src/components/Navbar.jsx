@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logo from '../assets/images/Logo-2.png';
 
 const Navbar = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -9,7 +10,8 @@ const Navbar = () => {
                 <div className="flex justify-between h-16">
                     <div className="flex items-center">
                         <div className="flex-shrink-0 flex items-center">
-                            <span className="text-2xl font-bold">Supreme<span className="text-red-500">Business</span></span>
+                            {/*<span className="text-2xl font-bold">Supreme<span className="text-red-500">Business</span></span>*/}
+                            <img src={logo} alt="Supreme Logo" className="h-11 w-auto" />
                         </div>
                     </div>
 

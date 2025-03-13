@@ -8,23 +8,25 @@ const Packages = () => {
             isPopular: false,
             features: [
                 "Freelancer Permit",
-                "1 Activity",
+                "Upto 10 Activities",
                 "0% Tax",
-                "Dubai Residence Visa",
+                "UAE Residence",
                 "No Office Required",
                 "Document Attestation",
-                "Certificate of Incorporation"
+                "Certificate of Incorporation",
+                "Legal Documentation",
+                "Business Networking Access"
             ]
         },
         {
             title: "Free Zone Company",
-            price: "12,950",
+            price: "10,900",
             isPopular: true,
             features: [
                 "Free Zone License",
                 "Multiple Activities",
                 "100% Foreign Ownership",
-                "3 Residence Visas",
+                "1 Residence Visa",
                 "Flexi Desk",
                 "Bank Account Assistance",
                 "Corporate Tax Planning",
@@ -39,7 +41,7 @@ const Packages = () => {
                 "Mainland DED License",
                 "Multiple Activities",
                 "100% Foreign Ownership",
-                "Up to 6 Residence Visas",
+                "Up to 6 Residence Visa Quotas",
                 "Physical Office Space",
                 "Corporate Bank Account",
                 "VAT Registration",

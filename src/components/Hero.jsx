@@ -114,7 +114,7 @@ const Hero = () => {
                 <div className="lg:flex items-center gap-10">
                     <div className="lg:w-3/5 mb-10 lg:mb-0">
                         <div className="bg-blue-600 inline-block px-3 py-1 text-white text-sm font-semibold rounded-full mb-3">
-                            Starting from AED 5,750
+                            Starting from AED 4,900
                         </div>
                         <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
                             Business Setup in Dubai <span className="text-red-500">Made Simple</span>

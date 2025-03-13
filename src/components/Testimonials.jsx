@@ -11,13 +11,13 @@ const Testimonials = () => {
         {
             quote: "I recently used the business setup service provided by Mr. Ehjaz, and I must say, it exceeded my expectations! From start to finish, the process was smooth and efficient.",
             name: "Shah Faisal",
-            position: "CEO",
+            position: "Bright Craft FZ LLC",
             image: "https://lh3.googleusercontent.com/a/ACg8ocKOaj9u7xvVOYdeDjlhJ1LAMF87HZndkZZKQ8Hb85UtoV7O0w=w36-h36-p-rp-mo-br100"
         },
         {
             quote: "I had a fantastic experience with Supreme! They made my company formation process quick and hassle-free. Their PRO services are incredible, saving me both time and effort.",
             name: "Md Pervez",
-            position: "Managing Director",
+            position: "Pervez Technical Services",
             image: "https://lh3.googleusercontent.com/a-/ALV-UjWTwuqHc6vnnYs5TsGDnXuszNOgDEOc8CnX-nGVpk-PXwUYW2s=s36-c-rp-mo-br100"
         }
     ];
