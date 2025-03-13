@@ -4,7 +4,7 @@ const Packages = () => {
     const packageData = [
         {
             title: "Freelancer License",
-            price: "5,750",
+            price: "4,900",
             isPopular: false,
             features: [
                 "Freelancer Permit",
@@ -42,9 +42,9 @@ const Packages = () => {
                 "Multiple Activities",
                 "100% Foreign Ownership",
                 "Up to 6 Residence Visa Quotas",
-                "Physical Office Space",
+                "Virtual Office Space",
                 "Corporate Bank Account",
-                "VAT Registration",
+                "Corporate TAX Registration",
                 "Legal Documentation",
                 "Business Networking Access"
             ]

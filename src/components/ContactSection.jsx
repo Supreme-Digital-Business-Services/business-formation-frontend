@@ -207,7 +207,7 @@ const ContactSection = () => {
                                             value={formData.firstName}
                                             onChange={handleChange}
                                             placeholder="Enter your first name"
-                                            className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.firstName ? 'border-red-500' : 'border-gray-300'} placeholder-black text-black`}
+                                            className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.firstName ? 'border-red-500' : 'border-gray-300'} placeholder-grey text-black`}
                                         />
                                         {errors.firstName && <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>}
                                     </div>
@@ -220,7 +220,7 @@ const ContactSection = () => {
                                             value={formData.lastName}
                                             onChange={handleChange}
                                             placeholder="Enter your last name"
-                                            className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.lastName ? 'border-red-500' : 'border-gray-300'} placeholder-black text-black`}
+                                            className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.lastName ? 'border-red-500' : 'border-gray-300'} placeholder-gray text-black`}
                                         />
                                         {errors.lastName && <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>}
                                     </div>
@@ -235,7 +235,7 @@ const ContactSection = () => {
                                         value={formData.email}
                                         onChange={handleChange}
                                         placeholder="Enter your email address"
-                                        className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.email ? 'border-red-500' : 'border-gray-300'} placeholder-black text-black`}
+                                        className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.email ? 'border-red-500' : 'border-gray-300'} placeholder-gray text-black`}
                                     />
                                     {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
                                 </div>
@@ -249,7 +249,7 @@ const ContactSection = () => {
                                         value={formData.phone}
                                         onChange={handleChange}
                                         placeholder="Enter your phone number"
-                                        className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.phone ? 'border-red-500' : 'border-gray-300'} placeholder-black text-black`}
+                                        className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.phone ? 'border-red-500' : 'border-gray-300'} placeholder-gray text-black`}
                                     />
                                     {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
                                 </div>
@@ -280,7 +280,7 @@ const ContactSection = () => {
                                         value={formData.message}
                                         onChange={handleChange}
                                         placeholder="Type your message here"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-black text-black"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray text-black"
                                     ></textarea>
                                 </div>
 
