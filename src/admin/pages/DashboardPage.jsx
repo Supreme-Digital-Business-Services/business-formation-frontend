@@ -34,13 +34,41 @@ const DashboardPage = () => {
                 const token = localStorage.getItem('token');
                 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-                const response = await axios.get(`${baseUrl}/dashboard`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
+                // Making separate API calls for each piece of data
+                const [leadsResponse, followUpsResponse] = await Promise.all([
+                    // Get leads with limit to fetch only recent ones
+                    axios.get(`${baseUrl}/leads?limit=5&sort=createdAt&order=desc`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }),
+                    // Get follow-ups
+                    axios.get(`${baseUrl}/follow-ups?today=true&limit=5`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    })
+                ]);
 
-                setDashboardStats(response.data);
+                // Count today's leads
+                const today = new Date().toISOString().split('T')[0];
+                const leadsToday = leadsResponse.data.leads.filter(lead =>
+                    new Date(lead.createdAt).toISOString().split('T')[0] === today
+                ).length;
+
+                // Count pending and completed follow-ups
+                const pendingFollowUps = followUpsResponse.data.followUps ?
+                    followUpsResponse.data.followUps.filter(f => !f.completedDate).length : 0;
+
+                const completedFollowUps = followUpsResponse.data.followUps ?
+                    followUpsResponse.data.followUps.filter(f => f.completedDate).length : 0;
+
+                setDashboardStats({
+                    totalLeads: leadsResponse.data.total || leadsResponse.data.leads.length,
+                    leadsToday,
+                    pendingFollowUps,
+                    completedFollowUps,
+                    recentLeads: leadsResponse.data.leads || [],
+                    upcomingFollowUps: followUpsResponse.data.followUps
+                        ? followUpsResponse.data.followUps.filter(f => !f.completedDate)
+                        : []
+                });
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
                 setError('Failed to load dashboard data. Please refresh or try again later.');
@@ -226,9 +254,9 @@ const DashboardPage = () => {
                                         </div>
                                         <div className="flex-1">
                                             <h4 className="text-sm font-medium">
-                                                {followUp.lead.firstName} {followUp.lead.lastName}
+                                                {followUp.lead?.firstName} {followUp.lead?.lastName}
                                             </h4>
-                                            <p className="text-xs text-gray-500">{followUp.lead.email}</p>
+                                            <p className="text-xs text-gray-500">{followUp.lead?.email}</p>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-xs font-medium">
