@@ -76,15 +76,15 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             )}
 
             {/* Sidebar */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r shadow-md transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
+            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-md transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
                 {/* Sidebar header */}
-                <div className="px-6 py-4 border-b">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between">
-                        <Link to="/admin" className="text-xl font-bold text-blue-900">
+                        <Link to="/admin" className="text-xl font-bold text-blue-900 dark:text-blue-400">
                             Supreme<span className="text-red-500">Business</span>
                         </Link>
                         <button
-                            className="p-1 rounded-full text-gray-600 hover:bg-gray-100 md:hidden"
+                            className="p-1 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden"
                             onClick={() => setIsOpen(false)}
                         >
                             <X className="h-6 w-6" />
@@ -100,11 +100,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                             to={item.path}
                             className={`flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
                                 item.active
-                                    ? 'bg-blue-50 text-blue-900'
-                                    : 'text-gray-700 hover:bg-gray-100'
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-400'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                         >
-              <span className={`${item.active ? 'text-blue-900' : 'text-gray-500'}`}>
+              <span className={`${item.active ? 'text-blue-900 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
                 {item.icon}
               </span>
                             <span className="ml-3">{item.title}</span>
@@ -113,16 +113,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 </nav>
 
                 {/* Company info */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
-                            <div className="h-8 w-8 rounded-full bg-blue-900 flex items-center justify-center text-white font-bold">
+                            <div className="h-8 w-8 rounded-full bg-blue-900 dark:bg-blue-700 flex items-center justify-center text-white font-bold">
                                 S
                             </div>
                         </div>
                         <div>
-                            <p className="text-sm font-medium">Supreme Business</p>
-                            <p className="text-xs text-gray-500">Dubai, UAE</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-200">Supreme Business</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Dubai, UAE</p>
                         </div>
                     </div>
                 </div>

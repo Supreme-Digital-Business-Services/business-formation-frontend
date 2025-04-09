@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
@@ -26,7 +26,7 @@ const AdminLayout = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
             {/* Sidebar */}
             <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
@@ -45,7 +45,7 @@ const AdminLayout = () => {
                 </main>
 
                 {/* Footer */}
-                <footer className="bg-white border-t p-4 text-center text-sm text-gray-600">
+                <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 text-center text-sm text-gray-600 dark:text-gray-400">
                     <p>© {new Date().getFullYear()} Supreme Business. All rights reserved.</p>
                 </footer>
             </div>
