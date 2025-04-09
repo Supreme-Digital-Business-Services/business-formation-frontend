@@ -40,11 +40,11 @@ const LeadsPage = () => {
 
                 let url = `${baseUrl}/leads?page=${currentPage}&limit=10`;
 
-                if (statusFilter) {
+                if (statusFilter && statusFilter !== 'all') {
                     url += `&status=${statusFilter}`;
                 }
 
-                if (sourceFilter) {
+                if (sourceFilter && sourceFilter !== 'all') {
                     url += `&source=${sourceFilter}`;
                 }
 
@@ -185,7 +185,7 @@ const LeadsPage = () => {
                             <SelectValue placeholder="Filter by status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Statuses</SelectItem>
+                            <SelectItem value="all">All Statuses</SelectItem>
                             <SelectItem value="NEW">New</SelectItem>
                             <SelectItem value="CONTACTED">Contacted</SelectItem>
                             <SelectItem value="QUALIFIED">Qualified</SelectItem>
@@ -203,7 +203,7 @@ const LeadsPage = () => {
                             <SelectValue placeholder="Filter by source" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Sources</SelectItem>
+                            <SelectItem value="all">All Sources</SelectItem>
                             <SelectItem value="WEBSITE">Website</SelectItem>
                             <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
                             <SelectItem value="REFERRAL">Referral</SelectItem>
