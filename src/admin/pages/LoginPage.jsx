@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import ThemeToggle from '@/components/theme/ThemeToggle';
 
 // Define form validation schema
 const loginSchema = z.object({
@@ -60,17 +61,22 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <Card className="w-full max-w-md">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+            {/* Theme toggle in corner */}
+            <div className="absolute top-4 right-4">
+                <ThemeToggle />
+            </div>
+
+            <Card className="w-full max-w-md bg-white dark:bg-gray-800 shadow-lg">
                 <CardHeader className="text-center">
-                    <div className="mb-4 text-2xl font-bold text-blue-900">
+                    <div className="mb-4 text-2xl font-bold text-blue-900 dark:text-blue-400">
                         Supreme<span className="text-red-500">Business</span>
                     </div>
-                    <CardTitle className="text-xl">Admin Login</CardTitle>
+                    <CardTitle className="text-xl text-gray-800 dark:text-white">Admin Login</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {error && (
-                        <div className="mb-4 p-3 rounded-md bg-red-50 text-red-800 border border-red-300 text-sm">
+                        <div className="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400 border border-red-300 dark:border-red-800 text-sm">
                             {error}
                         </div>
                     )}
@@ -82,11 +88,12 @@ const LoginPage = () => {
                                 name="email"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Email</FormLabel>
+                                        <FormLabel className="text-gray-700 dark:text-gray-300">Email</FormLabel>
                                         <FormControl>
                                             <Input
                                                 placeholder="Enter your email"
                                                 type="email"
+                                                className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -100,11 +107,12 @@ const LoginPage = () => {
                                 name="password"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Password</FormLabel>
+                                        <FormLabel className="text-gray-700 dark:text-gray-300">Password</FormLabel>
                                         <FormControl>
                                             <Input
                                                 placeholder="Enter your password"
                                                 type="password"
+                                                className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -115,7 +123,7 @@ const LoginPage = () => {
 
                             <Button
                                 type="submit"
-                                className="w-full bg-blue-900 hover:bg-blue-800"
+                                className="w-full bg-blue-900 hover:bg-blue-800 dark:bg-blue-700 dark:hover:bg-blue-600"
                                 disabled={isLoading}
                             >
                                 {isLoading ? 'Logging in...' : 'Login'}
@@ -124,7 +132,7 @@ const LoginPage = () => {
                     </Form>
 
                     <div className="mt-4 text-center text-sm">
-                        <a href="#" className="text-blue-600 hover:text-blue-800">
+                        <a href="#" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
                             Forgot password?
                         </a>
                     </div>
