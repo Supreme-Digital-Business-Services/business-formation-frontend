@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Badge } from '../../components/ui/badge';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter
-} from '../../components/ui/dialog';
 import { format } from 'date-fns';
+import FollowUpManagement from '../components/FollowUpManagement';
+import ScheduleFollowUpForm from '../components/ScheduleFollowUpForm';
 
 const FollowUpsPage = () => {
     const [followUps, setFollowUps] = useState([]);
@@ -19,8 +13,10 @@ const FollowUpsPage = () => {
     const [error, setError] = useState('');
     const [selectedFollowUp, setSelectedFollowUp] = useState(null);
     const [activeTab, setActiveTab] = useState('upcoming');
-    const [outcome, setOutcome] = useState('');
-    const [nextSteps, setNextSteps] = useState('');
+    const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
+    const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    const [selectedLead, setSelectedLead] = useState(null);
+    const [refreshKey, setRefreshKey] = useState(0); // Add refresh key for forcing re-renders
 
     // Get follow-ups from API
     useEffect(() => {
@@ -51,58 +47,77 @@ const FollowUpsPage = () => {
                     }
                 });
 
-                setFollowUps(response.data.followUps);
+                // Add defensive check for empty or malformed response
+                if (response.data && Array.isArray(response.data.followUps)) {
+                    setFollowUps(response.data.followUps);
+                } else {
+                    console.error('Invalid followUps data format:', response.data);
+                    setFollowUps([]);
+                }
             } catch (error) {
                 console.error('Error fetching follow-ups:', error);
                 setError('Failed to load follow-ups. Please try again.');
+                setFollowUps([]); // Reset to empty array on error
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchFollowUps();
-    }, [activeTab]);
-
-    // Complete a follow-up
-    const completeFollowUp = async () => {
-        if (!selectedFollowUp || !outcome) {
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem('token');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
-            await axios.put(
-                `${baseUrl}/follow-ups/${selectedFollowUp.id}/complete`,
-                {
-                    outcome,
-                    nextSteps
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                }
-            );
-
-            // Update local state
-            setFollowUps(followUps.filter(followUp => followUp.id !== selectedFollowUp.id));
-            setSelectedFollowUp(null);
-            setOutcome('');
-            setNextSteps('');
-
-        } catch (error) {
-            console.error('Error completing follow-up:', error);
-            setError('Failed to complete follow-up. Please try again.');
-        }
-    };
+    }, [activeTab, refreshKey]); // Add refreshKey to dependencies
 
     // View follow-up details
     const viewFollowUpDetails = (followUp) => {
         setSelectedFollowUp(followUp);
-        setOutcome('');
-        setNextSteps('');
+        setIsManagementModalOpen(true);
+    };
+
+    // Handle follow-up update
+    const handleFollowUpUpdate = (updatedFollowUp) => {
+        // Update the follow-up in the local state
+        setFollowUps(prevFollowUps =>
+            prevFollowUps.map(followUp =>
+                followUp.id === updatedFollowUp.id
+                    ? updatedFollowUp
+                    : followUp
+            )
+        );
+
+        // If the follow-up is now complete and we're not in the completed tab, remove it from the list
+        if (updatedFollowUp.completedDate && activeTab !== 'completed') {
+            setFollowUps(prevFollowUps =>
+                prevFollowUps.filter(followUp => followUp.id !== updatedFollowUp.id)
+            );
+        }
+
+        // Force refresh data on next render cycle
+        setRefreshKey(prevKey => prevKey + 1);
+    };
+
+    // Open the schedule follow-up modal
+    const openScheduleModal = () => {
+        setSelectedLead(null); // Reset selected lead
+        setIsScheduleModalOpen(true);
+    };
+
+    // Handle new follow-up scheduled
+    const handleFollowUpScheduled = (newFollowUp) => {
+        // Add the new follow-up to the list if it matches the current filter
+        if (activeTab === 'upcoming' ||
+            (activeTab === 'today' && isToday(new Date(newFollowUp.scheduledDate)))) {
+            setFollowUps(prevFollowUps => [newFollowUp, ...prevFollowUps]);
+        }
+
+        // Force refresh data to get complete lead information
+        setRefreshKey(prevKey => prevKey + 1);
+    };
+
+    // Helper function to check if a date is today
+    const isToday = (date) => {
+        const today = new Date();
+        return date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear();
     };
 
     // Format date for display
@@ -119,6 +134,7 @@ const FollowUpsPage = () => {
         return new Date(scheduledDate) < new Date() && activeTab !== 'completed';
     };
 
+    // Show loading state only on initial load
     if (isLoading && followUps.length === 0) {
         return (
             <div className="flex h-full items-center justify-center p-4">
@@ -131,7 +147,7 @@ const FollowUpsPage = () => {
         <div className="p-4">
             <div className="mb-6 flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-800">Follow-Up Management</h1>
-                <Button>Schedule New Follow-Up</Button>
+                <Button onClick={openScheduleModal}>Schedule New Follow-Up</Button>
             </div>
 
             {error && (
@@ -174,100 +190,31 @@ const FollowUpsPage = () => {
                 </TabsContent>
             </Tabs>
 
-            {/* Follow-Up Detail Modal */}
+            {/* Follow-Up Management Modal */}
             {selectedFollowUp && (
-                <Dialog open={!!selectedFollowUp} onOpenChange={(open) => !open && setSelectedFollowUp(null)}>
-                    <DialogContent className="sm:max-w-lg">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl">
-                                Follow-Up Details
-                            </DialogTitle>
-                        </DialogHeader>
-
-                        <div className="grid grid-cols-1 gap-4 py-4">
-                            <div>
-                                <h4 className="mb-1 text-sm font-medium text-gray-500">Lead Information</h4>
-                                <p className="font-medium text-gray-900">
-                                    {selectedFollowUp.lead.firstName} {selectedFollowUp.lead.lastName}
-                                </p>
-                                <p className="text-sm text-gray-600">{selectedFollowUp.lead.email}</p>
-                                <p className="text-sm text-gray-600">{selectedFollowUp.lead.phone}</p>
-                            </div>
-
-                            <div>
-                                <h4 className="mb-1 text-sm font-medium text-gray-500">Schedule</h4>
-                                <p className="text-sm">
-                                    <strong>Scheduled for:</strong> {formatDate(selectedFollowUp.scheduledDate)}
-                                </p>
-                                {selectedFollowUp.completedDate && (
-                                    <p className="text-sm">
-                                        <strong>Completed on:</strong> {formatDate(selectedFollowUp.completedDate)}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div>
-                                <h4 className="mb-1 text-sm font-medium text-gray-500">Notes</h4>
-                                <p className="text-sm">{selectedFollowUp.notes || 'No notes provided'}</p>
-                            </div>
-
-                            {selectedFollowUp.completedDate ? (
-                                <div>
-                                    <h4 className="mb-1 text-sm font-medium text-gray-500">Outcome</h4>
-                                    <p className="text-sm">{selectedFollowUp.outcome}</p>
-
-                                    {selectedFollowUp.nextSteps && (
-                                        <div className="mt-2">
-                                            <h4 className="mb-1 text-sm font-medium text-gray-500">Next Steps</h4>
-                                            <p className="text-sm">{selectedFollowUp.nextSteps}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div>
-                                    <h4 className="mb-1 text-sm font-medium text-gray-500">Complete Follow-Up</h4>
-
-                                    <div className="mt-2">
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">
-                                            Outcome
-                                        </label>
-                                        <Input
-                                            placeholder="Describe the outcome of this follow-up"
-                                            value={outcome}
-                                            onChange={(e) => setOutcome(e.target.value)}
-                                            className="w-full"
-                                        />
-                                    </div>
-
-                                    <div className="mt-2">
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">
-                                            Next Steps (optional)
-                                        </label>
-                                        <Input
-                                            placeholder="What are the next steps?"
-                                            value={nextSteps}
-                                            onChange={(e) => setNextSteps(e.target.value)}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <DialogFooter className="flex justify-between">
-                            <Button variant="outline" onClick={() => setSelectedFollowUp(null)}>
-                                {selectedFollowUp.completedDate ? 'Close' : 'Cancel'}
-                            </Button>
-
-                            {!selectedFollowUp.completedDate && (
-                                <Button onClick={completeFollowUp} disabled={!outcome}>
-                                    Mark as Completed
-                                </Button>
-                            )}
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <FollowUpManagement
+                    isOpen={isManagementModalOpen}
+                    onClose={() => {
+                        setIsManagementModalOpen(false);
+                        // Force refresh after modal closes to ensure data is current
+                        setTimeout(() => setRefreshKey(prevKey => prevKey + 1), 100);
+                    }}
+                    followUp={selectedFollowUp}
+                    onUpdate={handleFollowUpUpdate}
+                />
             )}
+
+            {/* Schedule Follow-Up Modal */}
+            <ScheduleFollowUpForm
+                isOpen={isScheduleModalOpen}
+                onClose={() => {
+                    setIsScheduleModalOpen(false);
+                    // Force refresh after modal closes to ensure data is current
+                    setTimeout(() => setRefreshKey(prevKey => prevKey + 1), 100);
+                }}
+                lead={selectedLead}
+                onScheduled={handleFollowUpScheduled}
+            />
         </div>
     );
 
@@ -295,9 +242,9 @@ const FollowUpsPage = () => {
                             <div className="mb-2 flex items-start justify-between">
                                 <div>
                                     <h3 className="font-medium text-gray-900">
-                                        {followUp.lead.firstName} {followUp.lead.lastName}
+                                        {followUp.lead?.firstName || 'No Name'} {followUp.lead?.lastName || ''}
                                     </h3>
-                                    <p className="text-sm text-gray-600">{followUp.lead.email}</p>
+                                    <p className="text-sm text-gray-600">{followUp.lead?.email || 'No email'}</p>
                                 </div>
                                 {followUp.completedDate ? (
                                     <Badge className="bg-green-100 text-green-800">Completed</Badge>
@@ -310,7 +257,13 @@ const FollowUpsPage = () => {
 
                             <div className="text-sm text-gray-600">
                                 <p><strong>Scheduled:</strong> {formatDate(followUp.scheduledDate)}</p>
+                                {followUp.completedDate && (
+                                    <p><strong>Completed:</strong> {formatDate(followUp.completedDate)}</p>
+                                )}
                                 <p className="mt-2 line-clamp-2">{followUp.notes || 'No notes provided'}</p>
+                                {followUp.outcome && (
+                                    <p className="mt-2"><strong>Outcome:</strong> <span className="line-clamp-2">{followUp.outcome}</span></p>
+                                )}
                             </div>
                         </div>
                     </div>
