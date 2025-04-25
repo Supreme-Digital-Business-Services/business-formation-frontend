@@ -24,18 +24,23 @@ import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 // Form schema for update tab
 const updateSchema = z.object({
     scheduledDate: z.string().min(1, 'Scheduled date is required'),
-    notes: z.string().optional(),
+    notes: z.string().min(1, 'Notes are required to track the purpose of this follow-up'),
 });
 
 // Form schema for complete tab
 const completeSchema = z.object({
     outcome: z.string().min(1, 'Outcome is required'),
-    nextSteps: z.string().optional(),
+    nextSteps: z.string().min(1, 'Next steps are required to ensure proper follow-through'),
+    updateLeadStatus: z.boolean().optional(),
+    newStatus: z.string().optional(),
+    scheduleNextFollowUp: z.boolean().optional(),
+    nextFollowUpDate: z.string().optional(),
 });
 
 const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
@@ -43,6 +48,9 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [leadStatus, setLeadStatus] = useState('');
+    const [scheduleNext, setScheduleNext] = useState(false);
+    const [updateStatus, setUpdateStatus] = useState(false);
 
     // Forms for the two tabs
     const updateForm = useForm({
@@ -58,6 +66,10 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
         defaultValues: {
             outcome: '',
             nextSteps: '',
+            updateLeadStatus: false,
+            newStatus: '',
+            scheduleNextFollowUp: false,
+            nextFollowUpDate: ''
         }
     });
 
@@ -72,14 +84,43 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
             completeForm.reset({
                 outcome: '',
                 nextSteps: '',
+                updateLeadStatus: false,
+                newStatus: '',
+                scheduleNextFollowUp: false,
+                nextFollowUpDate: ''
             });
 
             // If the follow-up is already completed, start on the update tab
             if (followUp.completedDate) {
                 setActiveTab('update');
             }
+
+            // Set default next follow-up date to 3 days from now
+            const nextDate = new Date();
+            nextDate.setDate(nextDate.getDate() + 3);
+            nextDate.setHours(10, 0, 0, 0);
+            completeForm.setValue('nextFollowUpDate', format(nextDate, "yyyy-MM-dd'T'HH:mm"));
+
+            // Get lead status
+            if (followUp.lead?.status) {
+                setLeadStatus(followUp.lead.status);
+                completeForm.setValue('newStatus', followUp.lead.status);
+            }
         }
     }, [followUp]);
+
+    // Handle changes to the schedule next followup checkbox
+    useEffect(() => {
+        const subscription = completeForm.watch((value, { name }) => {
+            if (name === 'scheduleNextFollowUp') {
+                setScheduleNext(value.scheduleNextFollowUp);
+            }
+            if (name === 'updateLeadStatus') {
+                setUpdateStatus(value.updateLeadStatus);
+            }
+        });
+        return () => subscription.unsubscribe();
+    }, [completeForm.watch]);
 
     // Handle Update form submission
     const handleUpdate = async (data) => {
@@ -130,9 +171,13 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
             const token = localStorage.getItem('token');
             const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+            // 1. Complete the follow-up
             const response = await axios.put(
                 `${baseUrl}/follow-ups/${followUp.id}/complete`,
-                data,
+                {
+                    outcome: data.outcome,
+                    nextSteps: data.nextSteps
+                },
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -140,9 +185,54 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
                 }
             );
 
+            // 2. Update lead status if requested
+            if (data.updateLeadStatus && data.newStatus) {
+                await axios.put(
+                    `${baseUrl}/leads/${followUp.lead.id}/status`,
+                    {
+                        status: data.newStatus
+                    },
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }
+                );
+
+                // Add a note about the status change
+                await axios.post(
+                    `${baseUrl}/leads/${followUp.lead.id}/notes`,
+                    {
+                        content: `Status changed to ${data.newStatus} after follow-up: ${data.outcome}`
+                    },
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }
+                );
+            }
+
+            // 3. Schedule next follow-up if requested
+            if (data.scheduleNextFollowUp && data.nextFollowUpDate) {
+                await axios.post(
+                    `${baseUrl}/follow-ups`,
+                    {
+                        leadId: followUp.lead.id,
+                        scheduledDate: data.nextFollowUpDate,
+                        notes: `Follow-up scheduled after previous outcome: ${data.outcome}. Next steps: ${data.nextSteps}`
+                    },
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }
+                );
+            }
+
             setSuccess('Follow-up marked as completed');
 
-            // Notify parent component
+            // Notify parent component with the completed follow-up
             if (onUpdate) {
                 onUpdate(response.data);
             }
@@ -165,6 +255,28 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
             return format(new Date(dateString), 'MMM d, yyyy - h:mm a');
         } catch (error) {
             return 'Invalid date';
+        }
+    };
+
+    // Get status badge color
+    const getStatusBadgeColor = (status) => {
+        switch (status) {
+            case 'NEW':
+                return 'bg-green-100 text-green-800';
+            case 'CONTACTED':
+                return 'bg-blue-100 text-blue-800';
+            case 'QUALIFIED':
+                return 'bg-purple-100 text-purple-800';
+            case 'PROPOSAL':
+                return 'bg-yellow-100 text-yellow-800';
+            case 'NEGOTIATION':
+                return 'bg-orange-100 text-orange-800';
+            case 'WON':
+                return 'bg-emerald-100 text-emerald-800';
+            case 'LOST':
+                return 'bg-red-100 text-red-800';
+            default:
+                return 'bg-gray-100 text-gray-800';
         }
     };
 
@@ -201,9 +313,16 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
                     <p className="text-sm text-blue-800">
                         {followUp.lead?.email} • {followUp.lead?.phone}
                     </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                        <strong>Scheduled for:</strong> {formatDate(followUp.scheduledDate)}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-blue-600">
+                            <strong>Scheduled for:</strong> {formatDate(followUp.scheduledDate)}
+                        </p>
+                        {followUp.lead?.status && (
+                            <Badge className={getStatusBadgeColor(followUp.lead.status)}>
+                                {followUp.lead.status}
+                            </Badge>
+                        )}
+                    </div>
                     {followUp.completedDate && (
                         <p className="text-xs text-green-600 mt-1">
                             <strong>Completed on:</strong> {formatDate(followUp.completedDate)}
@@ -249,10 +368,10 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
                                     name="notes"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Notes</FormLabel>
+                                            <FormLabel>Notes <span className="text-red-500">*</span></FormLabel>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="Add notes about this follow-up"
+                                                    placeholder="Add notes about this follow-up (required)"
                                                     rows={3}
                                                     {...field}
                                                 />
@@ -288,7 +407,7 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
                                             <FormLabel>Outcome <span className="text-red-500">*</span></FormLabel>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="Describe the outcome of this follow-up"
+                                                    placeholder="Describe the outcome of this follow-up (required)"
                                                     rows={3}
                                                     {...field}
                                                 />
@@ -303,10 +422,10 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
                                     name="nextSteps"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Next Steps</FormLabel>
+                                            <FormLabel>Next Steps <span className="text-red-500">*</span></FormLabel>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="Describe any next steps or actions"
+                                                    placeholder="Describe any next steps or actions (required)"
                                                     rows={3}
                                                     {...field}
                                                 />
@@ -315,6 +434,93 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
                                         </FormItem>
                                     )}
                                 />
+
+                                <div className="p-3 bg-gray-50 rounded-md space-y-4">
+                                    <FormField
+                                        control={completeForm.control}
+                                        name="updateLeadStatus"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-2">
+                                                <FormControl>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={field.value}
+                                                        onChange={field.onChange}
+                                                        className="h-4 w-4 rounded border-gray-300"
+                                                    />
+                                                </FormControl>
+                                                <div className="space-y-1 leading-none">
+                                                    <FormLabel>Update lead status</FormLabel>
+                                                </div>
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    {updateStatus && (
+                                        <FormField
+                                            control={completeForm.control}
+                                            name="newStatus"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>New Status</FormLabel>
+                                                    <FormControl>
+                                                        <select
+                                                            {...field}
+                                                            className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                                                        >
+                                                            <option value="NEW">New</option>
+                                                            <option value="CONTACTED">Contacted</option>
+                                                            <option value="QUALIFIED">Qualified</option>
+                                                            <option value="PROPOSAL">Proposal</option>
+                                                            <option value="NEGOTIATION">Negotiation</option>
+                                                            <option value="WON">Won</option>
+                                                            <option value="LOST">Lost</option>
+                                                        </select>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="p-3 bg-gray-50 rounded-md space-y-4">
+                                    <FormField
+                                        control={completeForm.control}
+                                        name="scheduleNextFollowUp"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-2">
+                                                <FormControl>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={field.value}
+                                                        onChange={field.onChange}
+                                                        className="h-4 w-4 rounded border-gray-300"
+                                                    />
+                                                </FormControl>
+                                                <div className="space-y-1 leading-none">
+                                                    <FormLabel>Schedule next follow-up</FormLabel>
+                                                </div>
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    {scheduleNext && (
+                                        <FormField
+                                            control={completeForm.control}
+                                            name="nextFollowUpDate"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Next Follow-up Date & Time</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="datetime-local" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
 
                                 <DialogFooter>
                                     <Button type="button" variant="outline" onClick={onClose}>

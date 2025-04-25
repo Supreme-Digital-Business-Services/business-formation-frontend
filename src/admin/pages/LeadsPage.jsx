@@ -4,15 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
 import AddLeadForm from '../components/AddLeadForm';
 import ScheduleFollowUpForm from '../components/ScheduleFollowUpForm';
+import LeadDetailsDialog from '../components/LeadDetailsDialog';
 
 const LeadsPage = () => {
     const [leads, setLeads] = useState([]);
@@ -27,6 +21,7 @@ const LeadsPage = () => {
     const [sourceFilter, setSourceFilter] = useState('');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0); // For forcing refreshes
 
     // Get leads from API
     useEffect(() => {
@@ -70,7 +65,7 @@ const LeadsPage = () => {
         };
 
         fetchLeads();
-    }, [currentPage, statusFilter, sourceFilter, searchTerm]);
+    }, [currentPage, statusFilter, sourceFilter, searchTerm, refreshKey]);
 
     // Status badge color mapping
     const getStatusBadgeColor = (status) => {
@@ -94,40 +89,24 @@ const LeadsPage = () => {
         }
     };
 
-    // Update lead status
-    const updateLeadStatus = async (leadId, newStatus) => {
-        try {
-            const token = localStorage.getItem('token');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    // Handle status update
+    const handleStatusUpdate = (updatedLead) => {
+        // Update local state to reflect the change
+        setLeads(leads.map(lead =>
+            lead.id === updatedLead.id ? { ...lead, status: updatedLead.status } : lead
+        ));
 
-            await axios.put(
-                `${baseUrl}/leads/${leadId}/status`,
-                { status: newStatus },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                }
-            );
+        setFilteredLeads(filteredLeads.map(lead =>
+            lead.id === updatedLead.id ? { ...lead, status: updatedLead.status } : lead
+        ));
 
-            // Update local state to reflect the change
-            setLeads(leads.map(lead =>
-                lead.id === leadId ? { ...lead, status: newStatus } : lead
-            ));
-
-            setFilteredLeads(filteredLeads.map(lead =>
-                lead.id === leadId ? { ...lead, status: newStatus } : lead
-            ));
-
-            // Update selected lead if it's open
-            if (selectedLead && selectedLead.id === leadId) {
-                setSelectedLead({ ...selectedLead, status: newStatus });
-            }
-
-        } catch (error) {
-            console.error('Error updating lead status:', error);
-            // Show error notification
+        // Update selected lead if it's open
+        if (selectedLead && selectedLead.id === updatedLead.id) {
+            setSelectedLead({ ...selectedLead, status: updatedLead.status });
         }
+
+        // Force refresh after a delay
+        setTimeout(() => setRefreshKey(prev => prev + 1), 100);
     };
 
     // View lead details
@@ -144,7 +123,8 @@ const LeadsPage = () => {
 
     // Handle follow-up scheduled
     const handleFollowUpScheduled = () => {
-        // Could add a toast notification here
+        // Force refresh data to ensure we have the latest
+        setTimeout(() => setRefreshKey(prev => prev + 1), 100);
     };
 
     if (isLoading && leads.length === 0) {
@@ -316,107 +296,18 @@ const LeadsPage = () => {
                 </div>
             </div>
 
-            {/* Lead Detail Modal */}
+            {/* Lead Detail Modal (Enhanced version) */}
             {selectedLead && (
-                <Dialog open={!!selectedLead} onOpenChange={(open) => !open && setSelectedLead(null)}>
-                    <DialogContent className="sm:max-w-lg">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl">
-                                Lead Details: {selectedLead.firstName} {selectedLead.lastName}
-                            </DialogTitle>
-                        </DialogHeader>
-
-                        <div className="grid grid-cols-2 gap-4 py-4">
-                            <div>
-                                <h4 className="mb-1 text-sm font-medium text-gray-500">Contact Information</h4>
-                                <p className="text-sm">Email: {selectedLead.email}</p>
-                                <p className="text-sm">Phone: {selectedLead.phone}</p>
-                            </div>
-
-                            <div>
-                                <h4 className="mb-1 text-sm font-medium text-gray-500">Lead Information</h4>
-                                <p className="text-sm">Business Type: {selectedLead.businessType || 'Not specified'}</p>
-                                <p className="text-sm">Source: {selectedLead.source}</p>
-                                <p className="text-sm">
-                                    Status: <Badge variant="outline" className={getStatusBadgeColor(selectedLead.status)}>{selectedLead.status}</Badge>
-                                </p>
-                            </div>
-
-                            <div className="col-span-2">
-                                <h4 className="mb-1 text-sm font-medium text-gray-500">Message</h4>
-                                <p className="text-sm">{selectedLead.message || 'No message provided'}</p>
-                            </div>
-
-                            <div className="col-span-2">
-                                <h4 className="mb-1 text-sm font-medium text-gray-500">Update Status</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    <Button
-                                        variant="outline" size="sm"
-                                        className={selectedLead.status === 'NEW' ? 'bg-green-100' : ''}
-                                        onClick={() => updateLeadStatus(selectedLead.id, 'NEW')}
-                                    >
-                                        New
-                                    </Button>
-                                    <Button
-                                        variant="outline" size="sm"
-                                        className={selectedLead.status === 'CONTACTED' ? 'bg-blue-100' : ''}
-                                        onClick={() => updateLeadStatus(selectedLead.id, 'CONTACTED')}
-                                    >
-                                        Contacted
-                                    </Button>
-                                    <Button
-                                        variant="outline" size="sm"
-                                        className={selectedLead.status === 'QUALIFIED' ? 'bg-purple-100' : ''}
-                                        onClick={() => updateLeadStatus(selectedLead.id, 'QUALIFIED')}
-                                    >
-                                        Qualified
-                                    </Button>
-                                    <Button
-                                        variant="outline" size="sm"
-                                        className={selectedLead.status === 'PROPOSAL' ? 'bg-yellow-100' : ''}
-                                        onClick={() => updateLeadStatus(selectedLead.id, 'PROPOSAL')}
-                                    >
-                                        Proposal
-                                    </Button>
-                                    <Button
-                                        variant="outline" size="sm"
-                                        className={selectedLead.status === 'NEGOTIATION' ? 'bg-orange-100' : ''}
-                                        onClick={() => updateLeadStatus(selectedLead.id, 'NEGOTIATION')}
-                                    >
-                                        Negotiation
-                                    </Button>
-                                    <Button
-                                        variant="outline" size="sm"
-                                        className={selectedLead.status === 'WON' ? 'bg-emerald-100' : ''}
-                                        onClick={() => updateLeadStatus(selectedLead.id, 'WON')}
-                                    >
-                                        Won
-                                    </Button>
-                                    <Button
-                                        variant="outline" size="sm"
-                                        className={selectedLead.status === 'LOST' ? 'bg-red-100' : ''}
-                                        onClick={() => updateLeadStatus(selectedLead.id, 'LOST')}
-                                    >
-                                        Lost
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <DialogFooter>
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setSelectedLead(prevLead => prevLead);
-                                    setIsFollowUpModalOpen(true);
-                                }}
-                            >
-                                Schedule Follow-Up
-                            </Button>
-                            <Button onClick={() => setSelectedLead(null)}>Close</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <LeadDetailsDialog
+                    lead={selectedLead}
+                    isOpen={!!selectedLead}
+                    onClose={() => setSelectedLead(null)}
+                    onStatusUpdate={handleStatusUpdate}
+                    onScheduleFollowUp={(lead) => {
+                        setSelectedLead(prevLead => prevLead);
+                        setIsFollowUpModalOpen(true);
+                    }}
+                />
             )}
 
             {/* Add Lead Modal */}
@@ -430,7 +321,11 @@ const LeadsPage = () => {
             {selectedLead && (
                 <ScheduleFollowUpForm
                     isOpen={isFollowUpModalOpen}
-                    onClose={() => setIsFollowUpModalOpen(false)}
+                    onClose={() => {
+                        setIsFollowUpModalOpen(false);
+                        // Force refresh data after scheduling
+                        setTimeout(() => setRefreshKey(prev => prev + 1), 100);
+                    }}
                     lead={selectedLead}
                     onScheduled={handleFollowUpScheduled}
                 />
