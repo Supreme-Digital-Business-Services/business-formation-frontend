@@ -471,6 +471,7 @@ const FollowUpManagement = ({ isOpen, onClose, followUp, onUpdate }) => {
                                                             <option value="NEW">New</option>
                                                             <option value="CONTACTED">Contacted</option>
                                                             <option value="QUALIFIED">Qualified</option>
+                                                            <option value="NOT_QUALIFIED">Not Qualified</option>
                                                             <option value="PROPOSAL">Proposal</option>
                                                             <option value="NEGOTIATION">Negotiation</option>
                                                             <option value="WON">Won</option>
