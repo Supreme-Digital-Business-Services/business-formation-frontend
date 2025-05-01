@@ -207,6 +207,7 @@ const AddLeadForm = ({ isOpen, onClose, onLeadAdded }) => {
                                             <SelectContent>
                                                 <SelectItem value="MANUAL">Manual Entry</SelectItem>
                                                 <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                                                <SelectItem value="GOOGLE_ADS">Google Ads</SelectItem>
                                                 <SelectItem value="PHONE">Phone Call</SelectItem>
                                                 <SelectItem value="REFERRAL">Referral</SelectItem>
                                                 <SelectItem value="OTHER">Other</SelectItem>
