@@ -19,9 +19,35 @@ const LeadsPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [sourceFilter, setSourceFilter] = useState('');
+    const [assignmentFilter, setAssignmentFilter] = useState('all');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0); // For forcing refreshes
+    const [currentUser, setCurrentUser] = useState(null);
+    const [userRole, setUserRole] = useState(null);
+
+    // Fetch current user data
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+                const response = await axios.get(`${baseUrl}/users/me`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
+                setCurrentUser(response.data);
+                setUserRole(response.data.role);
+            } catch (error) {
+                console.error('Error fetching current user:', error);
+            }
+        };
+
+        fetchCurrentUser();
+    }, []);
 
     // Get leads from API
     useEffect(() => {
@@ -35,14 +61,28 @@ const LeadsPage = () => {
 
                 let url = `${baseUrl}/leads?page=${currentPage}&limit=10`;
 
+                // Add filter based on status
                 if (statusFilter && statusFilter !== 'all') {
                     url += `&status=${statusFilter}`;
                 }
 
+                // Add filter based on source
                 if (sourceFilter && sourceFilter !== 'all') {
                     url += `&source=${sourceFilter}`;
                 }
 
+                // Add filter based on assignment
+                if (assignmentFilter === 'me') {
+                    url += `&assigned=me`;
+                } else if (assignmentFilter === 'mine') {
+                    url += `&createdBy=me`;
+                } else if (assignmentFilter === 'assigned') {
+                    url += `&assignedBy=me`;
+                } else if (assignmentFilter === 'unassigned') {
+                    url += `&assigned=unassigned`;
+                }
+
+                // Add search term
                 if (searchTerm) {
                     url += `&search=${searchTerm}`;
                 }
@@ -64,8 +104,45 @@ const LeadsPage = () => {
             }
         };
 
-        fetchLeads();
-    }, [currentPage, statusFilter, sourceFilter, searchTerm, refreshKey]);
+        if (currentUser) {
+            fetchLeads();
+        }
+    }, [currentPage, statusFilter, sourceFilter, searchTerm, assignmentFilter, refreshKey, currentUser]);
+
+    // Listen for lead updated events from LeadDetailsDialog
+    useEffect(() => {
+        const handleLeadUpdated = (event) => {
+            const updatedLead = event.detail.lead;
+            console.log('Lead updated event received in LeadsPage:', updatedLead);
+
+            // Update leads list with the updated lead
+            setLeads(prevLeads =>
+                prevLeads.map(lead =>
+                    lead.id === updatedLead.id ? { ...lead, ...updatedLead } : lead
+                )
+            );
+
+            setFilteredLeads(prevLeads =>
+                prevLeads.map(lead =>
+                    lead.id === updatedLead.id ? { ...lead, ...updatedLead } : lead
+                )
+            );
+
+            // Also update the selectedLead if it's the same lead
+            if (selectedLead && selectedLead.id === updatedLead.id) {
+                setSelectedLead(currentLead => ({
+                    ...currentLead,
+                    ...updatedLead
+                }));
+            }
+        };
+
+        window.addEventListener('leadUpdated', handleLeadUpdated);
+
+        return () => {
+            window.removeEventListener('leadUpdated', handleLeadUpdated);
+        };
+    }, [selectedLead]);
 
     // Status badge color mapping
     const getStatusBadgeColor = (status) => {
@@ -76,6 +153,8 @@ const LeadsPage = () => {
                 return 'bg-blue-100 text-blue-800';
             case 'QUALIFIED':
                 return 'bg-purple-100 text-purple-800';
+            case 'NOT_QUALIFIED':
+                return 'bg-rose-100 text-rose-800';
             case 'PROPOSAL':
                 return 'bg-yellow-100 text-yellow-800';
             case 'NEGOTIATION':
@@ -93,23 +172,23 @@ const LeadsPage = () => {
     const handleStatusUpdate = (updatedLead) => {
         // Update local state to reflect the change
         setLeads(leads.map(lead =>
-            lead.id === updatedLead.id ? { ...lead, status: updatedLead.status } : lead
+            lead.id === updatedLead.id ? { ...lead, ...updatedLead } : lead
         ));
 
         setFilteredLeads(filteredLeads.map(lead =>
-            lead.id === updatedLead.id ? { ...lead, status: updatedLead.status } : lead
+            lead.id === updatedLead.id ? { ...lead, ...updatedLead } : lead
         ));
 
         // Update selected lead if it's open
         if (selectedLead && selectedLead.id === updatedLead.id) {
-            setSelectedLead({ ...selectedLead, status: updatedLead.status });
+            setSelectedLead(prevLead => ({ ...prevLead, ...updatedLead }));
         }
 
-        // Force refresh after a delay
+        // Force refresh after a delay to ensure complete data
         setTimeout(() => setRefreshKey(prev => prev + 1), 100);
     };
 
-    // View lead details
+    // View lead details - Simple and fast for good UX
     const viewLeadDetails = (lead) => {
         setSelectedLead(lead);
     };
@@ -119,6 +198,9 @@ const LeadsPage = () => {
         // Add the new lead to the start of the list
         setLeads([newLead, ...leads]);
         setFilteredLeads([newLead, ...filteredLeads]);
+
+        // Force a refresh to get complete data
+        setTimeout(() => setRefreshKey(prev => prev + 1), 100);
     };
 
     // Handle follow-up scheduled
@@ -149,7 +231,7 @@ const LeadsPage = () => {
             )}
 
             {/* Filters */}
-            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-5">
                 <div>
                     <Input
                         placeholder="Search leads..."
@@ -169,6 +251,7 @@ const LeadsPage = () => {
                             <SelectItem value="NEW">New</SelectItem>
                             <SelectItem value="CONTACTED">Contacted</SelectItem>
                             <SelectItem value="QUALIFIED">Qualified</SelectItem>
+                            <SelectItem value="NOT_QUALIFIED">Not Qualified</SelectItem>
                             <SelectItem value="PROPOSAL">Proposal</SelectItem>
                             <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
                             <SelectItem value="WON">Won</SelectItem>
@@ -186,9 +269,27 @@ const LeadsPage = () => {
                             <SelectItem value="all">All Sources</SelectItem>
                             <SelectItem value="WEBSITE">Website</SelectItem>
                             <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                            <SelectItem value="GOOGLE_ADS">Google Ads</SelectItem>
                             <SelectItem value="REFERRAL">Referral</SelectItem>
                             <SelectItem value="MANUAL">Manual</SelectItem>
                             <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div>
+                    <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Filter by assignment" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Leads</SelectItem>
+                            <SelectItem value="me">Assigned to Me</SelectItem>
+                            <SelectItem value="mine">Created by Me</SelectItem>
+                            {userRole === 'ADMIN' && (
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                            )}
+                            <SelectItem value="assigned">I Assigned to Others</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -213,6 +314,9 @@ const LeadsPage = () => {
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                             Source
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            Assigned To
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                             Date
@@ -247,6 +351,18 @@ const LeadsPage = () => {
                                     {lead.source}
                                 </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                    {lead.assignedTo ? (
+                                        <span>
+                                            {lead.assignedTo.name}
+                                            {currentUser && lead.assignedTo.id === currentUser.id && (
+                                                <span className="ml-1 text-xs text-blue-600">(You)</span>
+                                            )}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">Unassigned</span>
+                                    )}
+                                </td>
+                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                     {new Date(lead.createdAt).toLocaleDateString()}
                                 </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
@@ -262,7 +378,7 @@ const LeadsPage = () => {
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                            <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
                                 No leads found
                             </td>
                         </tr>
@@ -307,6 +423,7 @@ const LeadsPage = () => {
                         setSelectedLead(prevLead => prevLead);
                         setIsFollowUpModalOpen(true);
                     }}
+                    userRole={userRole}
                 />
             )}
 

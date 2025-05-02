@@ -31,7 +31,7 @@ const scheduleSchema = z.object({
     leadEmail: z.string().email('Invalid email address').optional(),
     leadPhone: z.string().optional(),
     scheduledDate: z.string().min(1, 'Scheduled date is required'),
-    notes: z.string().optional(),
+    notes: z.string().min(1, 'Please add notes about this follow-up'),
 });
 
 const ScheduleFollowUpForm = ({ isOpen, onClose, lead, onScheduled }) => {
@@ -64,6 +64,12 @@ const ScheduleFollowUpForm = ({ isOpen, onClose, lead, onScheduled }) => {
             setSearchTerm('');
             setSearchResults([]);
 
+            // Set default date to tomorrow at 10:00 AM
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(10, 0, 0, 0);
+            const defaultDate = tomorrow.toISOString().substring(0, 16); // Format for datetime-local input
+
             // If lead is provided, pre-fill the form
             if (lead) {
                 setSelectedLead(lead);
@@ -72,7 +78,7 @@ const ScheduleFollowUpForm = ({ isOpen, onClose, lead, onScheduled }) => {
                     leadName: `${lead.firstName} ${lead.lastName}`,
                     leadEmail: lead.email,
                     leadPhone: lead.phone,
-                    scheduledDate: '',
+                    scheduledDate: defaultDate,
                     notes: '',
                 });
             } else {
@@ -82,7 +88,7 @@ const ScheduleFollowUpForm = ({ isOpen, onClose, lead, onScheduled }) => {
                     leadName: '',
                     leadEmail: '',
                     leadPhone: '',
-                    scheduledDate: '',
+                    scheduledDate: defaultDate,
                     notes: '',
                 });
             }
@@ -156,6 +162,11 @@ const ScheduleFollowUpForm = ({ isOpen, onClose, lead, onScheduled }) => {
             if (onScheduled) {
                 onScheduled(response.data);
             }
+
+            // Dispatch event to notify other components (like LeadDetailsDialog)
+            window.dispatchEvent(new CustomEvent('followUpScheduled', {
+                detail: response.data
+            }));
 
             // Close after a brief delay
             setTimeout(() => {
@@ -387,10 +398,10 @@ const ScheduleFollowUpForm = ({ isOpen, onClose, lead, onScheduled }) => {
                             name="notes"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Notes</FormLabel>
+                                    <FormLabel>Notes <span className="text-red-500">*</span></FormLabel>
                                     <FormControl>
                                         <Textarea
-                                            placeholder="Add notes about this follow-up"
+                                            placeholder="Add notes about this follow-up (purpose, what to discuss, etc.)"
                                             rows={3}
                                             {...field}
                                         />

@@ -12,9 +12,16 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertTriangle, CheckCircle, Clock, Calendar } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Calendar, UserPlus } from 'lucide-react';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
-const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFollowUp }) => {
+const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFollowUp, userRole }) => {
     const [activeTab, setActiveTab] = useState('overview');
     const [followUps, setFollowUps] = useState([]);
     const [statusHistory, setStatusHistory] = useState([]);
@@ -22,13 +29,81 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
     const [error, setError] = useState('');
     const [statusNote, setStatusNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0); // Add refresh key for forcing re-fetches
+    const [users, setUsers] = useState([]);
+    const [selectedUser, setSelectedUser] = useState('');
+    const [assignmentNote, setAssignmentNote] = useState('');
+    const [currentUser, setCurrentUser] = useState(null);
+
+    // Effect to handle follow-up scheduling
+    useEffect(() => {
+        // Listen for the custom event from ScheduleFollowUpForm
+        const handleFollowUpScheduled = () => {
+            // Refresh the lead data to get the latest follow-ups
+            setRefreshKey(prev => prev + 1);
+        };
+
+        // Add event listener
+        window.addEventListener('followUpScheduled', handleFollowUpScheduled);
+
+        // Clean up event listener on unmount
+        return () => {
+            window.removeEventListener('followUpScheduled', handleFollowUpScheduled);
+        };
+    }, []);
+
+    // Fetch current user data
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+                const response = await axios.get(`${baseUrl}/users/me`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
+                setCurrentUser(response.data);
+            } catch (error) {
+                console.error('Error fetching current user:', error);
+            }
+        };
+
+        fetchCurrentUser();
+    }, []);
+
+    // Fetch users for assignment
+    useEffect(() => {
+        if (isOpen) {
+            const fetchUsers = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+                    const response = await axios.get(`${baseUrl}/users`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
+
+                    setUsers(response.data || []);
+                } catch (error) {
+                    console.error('Error fetching users:', error);
+                }
+            };
+
+            fetchUsers();
+        }
+    }, [isOpen]);
 
     // Fetch lead follow-ups and status history when lead changes
     useEffect(() => {
         if (lead && isOpen) {
             fetchLeadData();
         }
-    }, [lead, isOpen]);
+    }, [lead, isOpen, refreshKey]); // Add refreshKey to dependencies
 
     const fetchLeadData = async () => {
         if (!lead) return;
@@ -65,6 +140,16 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
         }
     };
 
+    // Utility function to notify other components about lead updates
+    const notifyLeadUpdated = (updatedLead) => {
+        // Create a custom event to notify other components about the lead update
+        const event = new CustomEvent('leadUpdated', {
+            detail: { lead: updatedLead }
+        });
+        window.dispatchEvent(event);
+        console.log('Lead updated event dispatched:', updatedLead);
+    };
+
     // Handle status update with required note
     const handleStatusUpdate = async (newStatus) => {
         if (!statusNote.trim()) {
@@ -76,6 +161,9 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
         setError('');
 
         try {
+            // Update local state immediately for responsive UI
+            lead.status = newStatus;
+
             const token = localStorage.getItem('token');
             const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -103,21 +191,135 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
                 }
             );
 
-            // Update local state
-            onStatusUpdate(statusResponse.data);
+            // Update both local state and parent component
+            const updatedLead = {
+                ...lead,
+                status: newStatus
+            };
+
+            // Create a new status history entry for immediate display
+            const newStatusNote = {
+                id: Date.now().toString(), // Temporary ID until refresh
+                content: `Status changed to ${newStatus}: ${statusNote}`,
+                createdAt: new Date().toISOString()
+            };
+
+            // Update status history in local state
+            setStatusHistory([newStatusNote, ...statusHistory]);
+
+            // Update parent component
+            onStatusUpdate(updatedLead);
+
+            // Notify other components
+            notifyLeadUpdated(updatedLead);
 
             // Reset state
             setStatusNote('');
 
-            // Refresh data
-            fetchLeadData();
-
         } catch (error) {
             console.error('Error updating lead status:', error);
             setError('Failed to update status');
+
+            // Revert the optimistic UI update if API call fails
+            if (lead.previousStatus) {
+                lead.status = lead.previousStatus;
+            }
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    // Handle assigning lead to user
+    const handleAssignLead = async () => {
+        if (!selectedUser) {
+            setError('Please select a user to assign this lead to');
+            return;
+        }
+
+        setIsSubmitting(true);
+        setError('');
+
+        try {
+            // Find the assigned user's name from the users array before the API call
+            const assignedUser = users.find(user => user.id === selectedUser);
+
+            // Store previous assignment in case we need to revert
+            const previousAssignedToId = lead.assignedToId;
+            const previousAssignedTo = lead.assignedTo;
+
+            // CRITICAL: Update the UI immediately for better user experience
+            // This allows the assignment to appear right away in Lead Information
+            lead.assignedToId = selectedUser;
+            lead.assignedTo = assignedUser;
+
+            const token = localStorage.getItem('token');
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+            // Assign the lead
+            const response = await axios.put(
+                `${baseUrl}/leads/${lead.id}/assign`,
+                { userId: selectedUser },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            // Add a custom note if provided
+            if (assignmentNote.trim()) {
+                await axios.post(
+                    `${baseUrl}/leads/${lead.id}/notes`,
+                    {
+                        content: `Assignment note: ${assignmentNote}`
+                    },
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }
+                );
+            }
+
+            // Create updated lead object to pass to parent and other components
+            const updatedLead = {
+                ...lead,
+                assignedToId: selectedUser,
+                assignedTo: assignedUser || { id: selectedUser, name: 'Unknown User' }
+            };
+
+            // Update parent component
+            onStatusUpdate(updatedLead);
+
+            // Notify other components
+            notifyLeadUpdated(updatedLead);
+
+            // Reset form state
+            setSelectedUser('');
+            setAssignmentNote('');
+
+            // Optional: Refresh notes and other related data in the background
+            // This won't block the UI update but will ensure complete data eventually
+            fetchLeadData();
+
+        } catch (error) {
+            console.error('Error assigning lead:', error);
+            setError('Failed to assign lead');
+
+            // Revert the optimistic UI update if the API call fails
+            if (lead.previousAssignedToId !== undefined) {
+                lead.assignedToId = lead.previousAssignedToId;
+                lead.assignedTo = lead.previousAssignedTo;
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // Handle scheduling follow-up
+    const handleScheduleFollowUp = (lead) => {
+        onScheduleFollowUp(lead);
+        // We'll refresh the data when we receive the followUpScheduled event
     };
 
     // Status badge color mapping
@@ -129,6 +331,8 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
                 return 'bg-blue-100 text-blue-800';
             case 'QUALIFIED':
                 return 'bg-purple-100 text-purple-800';
+            case 'NOT_QUALIFIED':
+                return 'bg-rose-100 text-rose-800';
             case 'PROPOSAL':
                 return 'bg-yellow-100 text-yellow-800';
             case 'NEGOTIATION':
@@ -150,6 +354,9 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
             return 'Invalid date';
         }
     };
+
+    // Check if the lead is assigned to the current user
+    const isAssignedToCurrentUser = currentUser && lead?.assignedToId === currentUser.id;
 
     if (!lead) return null;
 
@@ -194,6 +401,10 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
                                 <p className="text-sm">Business Type: {lead.businessType || 'Not specified'}</p>
                                 <p className="text-sm">Source: {lead.source}</p>
                                 <p className="text-sm">Created: {formatDate(lead.createdAt)}</p>
+                                <p className="text-sm">
+                                    Assigned To: {lead.assignedTo ? lead.assignedTo.name : 'Unassigned'}
+                                    {isAssignedToCurrentUser && <span className="ml-1 text-xs text-blue-600">(You)</span>}
+                                </p>
                             </div>
 
                             {/* Message/Notes */}
@@ -260,7 +471,7 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
                                 <h3 className="text-lg font-medium">Follow-Ups</h3>
-                                <Button size="sm" onClick={() => onScheduleFollowUp(lead)}>
+                                <Button size="sm" onClick={() => handleScheduleFollowUp(lead)}>
                                     Schedule New Follow-Up
                                 </Button>
                             </div>
@@ -398,6 +609,48 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
                     </TabsContent>
                 </Tabs>
 
+                {/* Assignment Section (Available to all users) */}
+                <div className="mt-6 border-t pt-4">
+                    <h4 className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
+                        <UserPlus className="h-4 w-4" />
+                        Assign Lead
+                    </h4>
+
+                    <div className="flex gap-4 mb-3">
+                        <div className="flex-1">
+                            <Select value={selectedUser} onValueChange={setSelectedUser}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a user" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {users.map(user => (
+                                        <SelectItem key={user.id} value={user.id}>
+                                            {user.name} {user.id === lead.assignedToId && '(Current)'}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button
+                            size="sm"
+                            onClick={handleAssignLead}
+                            disabled={isSubmitting || !selectedUser}
+                        >
+                            Assign
+                        </Button>
+                    </div>
+
+                    <div className="mb-3">
+                        <Textarea
+                            placeholder="Add a note about this assignment (optional)"
+                            value={assignmentNote}
+                            onChange={(e) => setAssignmentNote(e.target.value)}
+                            className="w-full text-sm"
+                            rows={2}
+                        />
+                    </div>
+                </div>
+
                 {/* Status Update Section */}
                 <div className="mt-6 border-t pt-4">
                     <h4 className="text-sm font-medium text-gray-500 mb-2">Update Status</h4>
@@ -439,6 +692,14 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
                         </Button>
                         <Button
                             variant="outline" size="sm"
+                            className={lead.status === 'NOT_QUALIFIED' ? 'bg-gray-100' : ''}
+                            onClick={() => handleStatusUpdate('NOT_QUALIFIED')}
+                            disabled={isSubmitting || !statusNote.trim()}
+                        >
+                            Not Qualified
+                        </Button>
+                        <Button
+                            variant="outline" size="sm"
                             className={lead.status === 'PROPOSAL' ? 'bg-yellow-100' : ''}
                             onClick={() => handleStatusUpdate('PROPOSAL')}
                             disabled={isSubmitting || !statusNote.trim()}
@@ -475,7 +736,7 @@ const LeadDetailsDialog = ({ lead, isOpen, onClose, onStatusUpdate, onScheduleFo
                 <DialogFooter className="mt-4 flex space-x-2">
                     <Button
                         variant="outline"
-                        onClick={() => onScheduleFollowUp(lead)}
+                        onClick={() => handleScheduleFollowUp(lead)}
                     >
                         Schedule Follow-Up
                     </Button>
