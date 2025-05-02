@@ -20,6 +20,8 @@ const LeadsPage = () => {
     const [statusFilter, setStatusFilter] = useState('');
     const [sourceFilter, setSourceFilter] = useState('');
     const [assignmentFilter, setAssignmentFilter] = useState('all');
+    const [userFilter, setUserFilter] = useState('all');
+    const [usersList, setUsersList] = useState([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0); // For forcing refreshes
@@ -48,6 +50,30 @@ const LeadsPage = () => {
 
         fetchCurrentUser();
     }, []);
+
+    // Fetch users for admin filter
+    useEffect(() => {
+        const fetchUsers = async () => {
+            if (userRole === 'ADMIN') { // Only fetch users list if admin
+                try {
+                    const token = localStorage.getItem('token');
+                    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+                    const response = await axios.get(`${baseUrl}/users`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
+
+                    setUsersList(response.data || []);
+                } catch (error) {
+                    console.error('Error fetching users:', error);
+                }
+            }
+        };
+
+        fetchUsers();
+    }, [userRole]);
 
     // Get leads from API
     useEffect(() => {
@@ -82,6 +108,15 @@ const LeadsPage = () => {
                     url += `&assigned=unassigned`;
                 }
 
+                // Add filter based on user (for admin)
+                if (userFilter && userFilter !== 'all') {
+                    if (userFilter === 'unassigned') {
+                        url += `&assigned=unassigned`;
+                    } else {
+                        url += `&assignedToUser=${userFilter}`;
+                    }
+                }
+
                 // Add search term
                 if (searchTerm) {
                     url += `&search=${searchTerm}`;
@@ -107,7 +142,7 @@ const LeadsPage = () => {
         if (currentUser) {
             fetchLeads();
         }
-    }, [currentPage, statusFilter, sourceFilter, searchTerm, assignmentFilter, refreshKey, currentUser]);
+    }, [currentPage, statusFilter, sourceFilter, searchTerm, assignmentFilter, userFilter, refreshKey, currentUser]);
 
     // Listen for lead updated events from LeadDetailsDialog
     useEffect(() => {
@@ -293,6 +328,26 @@ const LeadsPage = () => {
                         </SelectContent>
                     </Select>
                 </div>
+
+                {/* User filter - only show for admins */}
+                {userRole === 'ADMIN' && (
+                    <div>
+                        <Select value={userFilter} onValueChange={setUserFilter}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Filter by user" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Users</SelectItem>
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                                {usersList.map(user => (
+                                    <SelectItem key={user.id} value={user.id}>
+                                        {user.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
             </div>
 
             {/* Leads Table */}
